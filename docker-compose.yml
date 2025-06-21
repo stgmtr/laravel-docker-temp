@@ -1,0 +1,73 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: etc/Dockerfile
+    image: ${IMAGE_NAME}
+    restart: unless-stopped
+    volumes:
+      - ./web:/var/www/html
+      - vendor_cache:/var/www/html/vendor
+    environment:
+      DB_CONNECTION: ${DB_CONNECTION:-mysql}
+      DB_HOST: ${DB_HOST:-mysql}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_DATABASE: ${DB_DATABASE}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+    command: >
+      bash -c "if [ ! -f /var/www/html/.env ]; then cp .env.example .env; fi && if ! grep -q '^APP_KEY=' /var/www/html/.env || grep -q '^APP_KEY=$' /var/www/html/.env; then php artisan key:generate; fi && chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache && php-fpm"
+    depends_on:
+      - mysql
+    networks:
+      - default
+
+  nginx:
+    image: nginx:latest
+    restart: always
+    networks:
+      - nginx-proxy-manager_default
+      - default
+    ports:
+      - ${NGINX_PORT}:80
+    environment:
+      - NGINX_HOST=${NGINX_HOST}
+    volumes:
+      - ./etc/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./etc/ssl:/etc/ssl
+      - ./web:/var/www/html
+      - ./etc/nginx/default.template.conf:/etc/nginx/conf.d/default.template
+    command: /bin/sh -c "envsubst '$$NGINX_HOST' < /etc/nginx/conf.d/default.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"
+    depends_on:
+      - app
+
+  mysql:
+    image: mysql:lts
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./data/db:/var/lib/mysql
+    ports:
+      - "${MYSQL_PORT}:3306"
+    networks:
+      - default
+    # Eğer MySQL için bellek sınırları eklemek isterseniz aşağıdaki satırları kullanabilirsiniz
+    # deploy:
+    #  resources:
+    #    limits:
+    #      memory: 2G 
+    #    reservations:
+    #     memory: 512M
+
+networks:
+  default:
+    driver: bridge
+  nginx-proxy-manager_default:
+    external: true
+
+volumes:
+  vendor_cache:
