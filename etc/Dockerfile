@@ -16,6 +16,7 @@ RUN apk add --update --no-cache \
     openssh-client \
     imagemagick-dev \
     libwebp-dev \
+    icu-dev \ 
     nodejs \
     npm
 
@@ -23,7 +24,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/local/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-RUN docker-php-ext-install pdo pdo_mysql gd exif bcmath mbstring zip
+RUN docker-php-ext-install pdo pdo_mysql gd exif bcmath mbstring zip intl
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
 
 RUN pecl install imagick \
@@ -37,13 +38,14 @@ COPY web/config ./config
 COPY web/app ./app
 COPY web/routes ./routes
 
+RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache bootstrap/cache \
+    && chmod -R 777 storage bootstrap/cache
+
 RUN composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader \
     && composer clear-cache \
     && composer dump-autoload
 
 COPY web/ .
-
-RUN mkdir -p storage/framework/sessions storage/framework/views storage/framework/cache bootstrap/cache
 
 COPY etc/php/php.ini /usr/local/etc/php/php.ini
 
