@@ -25,6 +25,7 @@ services:
   queue:
     image: ${IMAGE_NAME}
     restart: unless-stopped
+    user: "82:82"
     command: php artisan queue:work --verbose --tries=3 --timeout=90
     environment:
       DB_CONNECTION: ${DB_CONNECTION:-mysql}
