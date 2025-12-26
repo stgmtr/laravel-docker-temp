@@ -83,6 +83,23 @@ services:
     #    reservations:
     #     memory: 512M
 
+  scheduler:
+    image: ${IMAGE_NAME}
+    restart: unless-stopped
+    command: >
+      sh -c "while [ true ]; do
+        php artisan schedule:run --no-interaction &
+        sleep 60;
+      done"
+    volumes:
+      - ./web:/var/www/html
+      - vendor_cache:/var/www/html/vendor
+    depends_on:
+      - app
+      - mysql
+    networks:
+      - default
+
 networks:
   default:
     driver: bridge
